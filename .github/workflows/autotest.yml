@@ -192,6 +192,15 @@ jobs:
           TEST_OUTCOME: ${{ steps.tests.outcome }}
         run: python utils/email_notifier.py
 
+      - name: Send DingTalk notification
+        if: always()
+        working-directory: mall-autotest
+        env:
+          DINGTALK_WEBHOOK: ${{ secrets.DINGTALK_WEBHOOK }}
+          DINGTALK_SECRET: ${{ secrets.DINGTALK_SECRET }}
+          TEST_OUTCOME: ${{ steps.tests.outcome }}
+        run: python utils/dingtalk_notifier.py
+
       - name: Show service logs on failure
         if: failure()
         run: |
