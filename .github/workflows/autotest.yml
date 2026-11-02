@@ -210,3 +210,28 @@ jobs:
       - name: Enforce test result
         if: always() && steps.tests.outcome == 'failure'
         run: exit 1
+
+      - name: Upload Allure report for GitHub Pages
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: mall-autotest/reports/allure-report
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy Allure report to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
