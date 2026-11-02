@@ -56,15 +56,18 @@ jobs:
       - name: Start middleware and initialize database
         timeout-minutes: 12
         run: |
-          docker compose -f mall/document/docker/docker-compose-env.yml up -d mysql redis rabbitmq mongo
-          docker compose -f mall/document/docker/docker-compose-env.yml ps
+          docker run -d --name mysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=mall mysql:5.7 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+          docker run -d --name redis -p 6379:6379 redis:7 redis-server --appendonly yes
+          docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3.9.11-management
+          docker run -d --name mongo -p 27017:27017 mongo:4
+          docker ps
           for attempt in {1..60}; do
             if docker exec mysql mysqladmin ping -uroot -proot --silent; then
               break
             fi
             if [ "$attempt" -eq 60 ]; then
               echo "MySQL did not become ready"
-              docker compose -f mall/document/docker/docker-compose-env.yml ps
+              docker ps -a
               docker logs --tail 100 mysql
               exit 1
             fi
