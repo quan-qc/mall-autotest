@@ -1,0 +1,140 @@
+name: mall-autotest
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout test project
+        uses: actions/checkout@v4
+        with:
+          path: mall-autotest
+
+      - name: Checkout mall backend
+        uses: actions/checkout@v4
+        with:
+          repository: macrozheng/mall
+          path: mall
+
+      - name: Checkout mall frontend
+        uses: actions/checkout@v4
+        with:
+          repository: macrozheng/mall-admin-web
+          path: mall-admin-web
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.19.0"
+          cache: npm
+          cache-dependency-path: mall-admin-web/package-lock.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: mall-autotest/requirements.txt
+
+      - name: Start middleware and initialize database
+        run: |
+          docker compose -f mall/document/docker/docker-compose-env.yml up -d mysql redis rabbitmq mongo
+          until docker exec mysql mysqladmin ping -uroot -proot --silent; do sleep 2; done
+          docker exec mysql mysql -uroot -proot -e "CREATE DATABASE IF NOT EXISTS mall DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+          docker exec -i mysql mysql -uroot -proot mall < mall/document/sql/mall.sql
+
+      - name: Build mall backend
+        working-directory: mall
+        run: mvn -B -pl mall-admin -am package -DskipTests
+
+      - name: Start mall backend
+        run: |
+          cd mall
+          nohup java -jar mall-admin/target/mall-admin-1.0-SNAPSHOT.jar > "$RUNNER_TEMP/mall-admin.log" 2>&1 &
+          until curl -fsS http://localhost:8080/admin/info > /dev/null; do sleep 2; done
+
+      - name: Install frontend dependencies
+        working-directory: mall-admin-web
+        run: npm ci
+
+      - name: Start mall frontend
+        working-directory: mall-admin-web
+        run: |
+          nohup npm run dev -- --host 0.0.0.0 > "$RUNNER_TEMP/mall-admin-web.log" 2>&1 &
+          until curl -fsS http://localhost:5173 > /dev/null; do sleep 2; done
+
+      - name: Install test dependencies
+        working-directory: mall-autotest
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Run API and UI tests
+        id: tests
+        continue-on-error: true
+        working-directory: mall-autotest
+        run: >-
+          python -m pytest -q
+          --base-url http://localhost:8080
+          --ui-base-url http://localhost:5173
+          --junitxml=reports/junit.xml
+
+      - name: Generate Allure report
+        if: always()
+        working-directory: mall-autotest
+        run: |
+          if [ -d reports/allure-results ]; then
+            npx --yes allure-commandline generate reports/allure-results -o reports/allure-report --clean
+          fi
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mall-test-reports-${{ github.run_number }}
+          path: |
+            mall-autotest/reports/allure-report/
+            mall-autotest/reports/screenshots/
+            mall-autotest/reports/junit.xml
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Send email notification
+        if: always()
+        working-directory: mall-autotest
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          TEST_OUTCOME: ${{ steps.tests.outcome }}
+        run: python utils/email_notifier.py
+
+      - name: Show service logs on failure
+        if: failure()
+        run: |
+          if [ -f "$RUNNER_TEMP/mall-admin.log" ]; then cat "$RUNNER_TEMP/mall-admin.log"; fi
+          if [ -f "$RUNNER_TEMP/mall-admin-web.log" ]; then cat "$RUNNER_TEMP/mall-admin-web.log"; fi
+
+      - name: Enforce test result
+        if: always() && steps.tests.outcome != 'success'
+        run: exit 1

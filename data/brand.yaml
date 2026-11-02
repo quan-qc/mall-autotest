@@ -1,0 +1,21 @@
+# 品牌测试数据，{ts} 由用例生成唯一后缀
+create:
+  name: 自动化测试品牌-{ts}
+  firstLetter: A
+  sort: 10
+  factoryStatus: 1
+  showStatus: 1
+  logo: http://macro-oss.oss-cn-shenzhen.aliyuncs.com/mall/images/1.jpg
+  bigPic: http://macro-oss.oss-cn-shenzhen.aliyuncs.com/mall/images/1.jpg
+  brandStory: 接口自动化测试创建的品牌
+
+missing_logo:
+  name: 无效品牌-{ts}
+  firstLetter: B
+  sort: 1
+  factoryStatus: 1
+  showStatus: 1
+
+query:
+  keyword: 小米
+  page_size: 5

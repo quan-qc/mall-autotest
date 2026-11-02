@@ -1,0 +1,8 @@
+# 商品查询测试数据
+list:
+  keyword: 华为
+  page_size: 5
+
+pagination:
+  page_num: 3
+  page_size: 2

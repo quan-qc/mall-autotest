@@ -1,0 +1,13 @@
+# 被测环境配置：支持环境变量覆盖（MALL_BASE_URL / MALL_USERNAME / MALL_PASSWORD）
+base_url: http://localhost:8080
+ui_base_url: http://localhost:5173
+timeout: 10
+
+admin:
+  username: admin
+  password: macro123
+  token_head: "Bearer "
+
+log:
+  level: INFO
+  file: logs/autotest.log

@@ -1,0 +1,10 @@
+# 商品分类测试数据
+create:
+  parentId: 0
+  name: 自动化测试分类-{ts}
+  productUnit: 个
+  navStatus: 0
+  showStatus: 1
+  sort: 10
+  keywords: 自动化
+  description: 接口自动化测试创建的分类

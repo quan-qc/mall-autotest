@@ -1,0 +1,13 @@
+# 角色测试数据
+create:
+  name: 自动化测试角色-{ts}
+  description: 接口自动化测试
+  adminCount: 0
+  sort: 0
+  status: 1
+
+update:
+  description: 自动化测试-更新后的描述
+  adminCount: 0
+  sort: 5
+  status: 1
