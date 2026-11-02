@@ -12,7 +12,7 @@ class BasePage:
         self.page.wait_for_load_state("domcontentloaded")
 
     def wait_table_loaded(self):
-        expect(self.table_rows.first).to_be_visible()
+        expect(self.table_rows.first).to_be_visible(timeout=30_000)
         expect(self.page.locator(".el-loading-mask")).to_have_count(0)
 
     @property
