@@ -75,6 +75,22 @@ jobs:
           docker exec mysql mysql -uroot -proot -e "CREATE DATABASE IF NOT EXISTS mall DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
           docker exec -i mysql mysql -uroot -proot mall < mall/document/sql/mall.sql
 
+      - name: Configure Maven mirror
+        run: |
+          mkdir -p "$HOME/.m2"
+          cat > "$HOME/.m2/settings.xml" <<'EOF'
+          <settings xmlns="http://maven.apache.org/SETTINGS/1.2.0">
+            <mirrors>
+              <mirror>
+                <id>aliyun-public</id>
+                <name>Aliyun public Maven mirror</name>
+                <url>https://maven.aliyun.com/repository/public</url>
+                <mirrorOf>*</mirrorOf>
+              </mirror>
+            </mirrors>
+          </settings>
+          EOF
+
       - name: Cache Maven dependencies
         uses: actions/cache@v4
         with:
