@@ -54,9 +54,23 @@ jobs:
           cache-dependency-path: mall-autotest/requirements.txt
 
       - name: Start middleware and initialize database
+        timeout-minutes: 12
         run: |
           docker compose -f mall/document/docker/docker-compose-env.yml up -d mysql redis rabbitmq mongo
-          until docker exec mysql mysqladmin ping -uroot -proot --silent; do sleep 2; done
+          docker compose -f mall/document/docker/docker-compose-env.yml ps
+          for attempt in {1..60}; do
+            if docker exec mysql mysqladmin ping -uroot -proot --silent; then
+              break
+            fi
+            if [ "$attempt" -eq 60 ]; then
+              echo "MySQL did not become ready"
+              docker compose -f mall/document/docker/docker-compose-env.yml ps
+              docker logs --tail 100 mysql
+              exit 1
+            fi
+            echo "Waiting for MySQL ($attempt/60)"
+            sleep 5
+          done
           docker exec mysql mysql -uroot -proot -e "CREATE DATABASE IF NOT EXISTS mall DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
           docker exec -i mysql mysql -uroot -proot mall < mall/document/sql/mall.sql
 
@@ -65,20 +79,44 @@ jobs:
         run: mvn -B -pl mall-admin -am package -DskipTests
 
       - name: Start mall backend
+        timeout-minutes: 8
         run: |
           cd mall
           nohup java -jar mall-admin/target/mall-admin-1.0-SNAPSHOT.jar > "$RUNNER_TEMP/mall-admin.log" 2>&1 &
-          until curl -fsS http://localhost:8080/admin/info > /dev/null; do sleep 2; done
+          for attempt in {1..60}; do
+            if curl -fsS http://localhost:8080/admin/info > /dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 60 ]; then
+              echo "Mall backend did not become ready"
+              cat "$RUNNER_TEMP/mall-admin.log"
+              exit 1
+            fi
+            echo "Waiting for mall backend ($attempt/60)"
+            sleep 5
+          done
 
       - name: Install frontend dependencies
         working-directory: mall-admin-web
         run: npm ci
 
       - name: Start mall frontend
+        timeout-minutes: 5
         working-directory: mall-admin-web
         run: |
           nohup npm run dev -- --host 0.0.0.0 > "$RUNNER_TEMP/mall-admin-web.log" 2>&1 &
-          until curl -fsS http://localhost:5173 > /dev/null; do sleep 2; done
+          for attempt in {1..60}; do
+            if curl -fsS http://localhost:5173 > /dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 60 ]; then
+              echo "Mall frontend did not become ready"
+              cat "$RUNNER_TEMP/mall-admin-web.log"
+              exit 1
+            fi
+            echo "Waiting for mall frontend ($attempt/60)"
+            sleep 5
+          done
 
       - name: Install test dependencies
         working-directory: mall-autotest
