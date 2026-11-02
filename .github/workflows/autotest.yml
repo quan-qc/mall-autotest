@@ -101,7 +101,7 @@ jobs:
 
       - name: Build mall backend
         working-directory: mall
-        run: mvn -B -Dmaven.wagon.http.retryHandler.count=5 -pl mall-admin -am package -DskipTests
+        run: mvn -B -Dmaven.wagon.http.retryHandler.count=5 -Ddocker.skip=true -pl mall-admin -am package -DskipTests
 
       - name: Start mall backend
         timeout-minutes: 8
