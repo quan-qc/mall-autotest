@@ -77,9 +77,17 @@ jobs:
           docker exec mysql mysql -uroot -proot -e "CREATE DATABASE IF NOT EXISTS mall DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
           docker exec -i mysql mysql -uroot -proot mall < mall/document/sql/mall.sql
 
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('mall/pom.xml', 'mall/**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
       - name: Build mall backend
         working-directory: mall
-        run: mvn -B -pl mall-admin -am package -DskipTests
+        run: mvn -B -Dmaven.wagon.http.retryHandler.count=5 -pl mall-admin -am package -DskipTests
 
       - name: Start mall backend
         timeout-minutes: 8
